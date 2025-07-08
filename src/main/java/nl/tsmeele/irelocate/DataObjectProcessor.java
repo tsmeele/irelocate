@@ -16,6 +16,10 @@ public class DataObjectProcessor implements Runnable {
 	private Queue<String> queue = null;
 	private boolean stop = false;
 	private long count;
+	private long doneOk;
+	private long doneReplicated;
+	private long doneError;
+	private long doneSkipped;
 	private Hirods hirods = null;
 	
 	DataObjectProcessor(int threadId, RelocateContext ctx, Queue<String> queue) {
@@ -34,7 +38,8 @@ public class DataObjectProcessor implements Runnable {
 		while (process(queue.poll()) && !stop) {
 			count++;
 		}
-		System.out.println("DataObjectProcessor #" + threadId + " is done, has processed " + count + " objects");
+		System.out.println("DataObjectProcessor #" + threadId + " is done. Data objects total: " + count + "  okay: " + doneOk +
+				"  replicated-okay: " + doneReplicated + "  error: " + doneError + "  skipped: " + doneSkipped);
 		// clean up any open server session
 		try {
 			if (hirods != null) {
@@ -117,6 +122,7 @@ public class DataObjectProcessor implements Runnable {
 			// ignore data object if all replicas not at rest 
 			if (replicas.isEmpty() || (goodOrStale == null && intermediate)) {
 				Log.debug("Skipping intermediate object " + dataObj);
+				doneSkipped++;
 				return true;
 			}
 			
@@ -127,6 +133,7 @@ public class DataObjectProcessor implements Runnable {
 				if (ctx.verbose) {
 					Log.info("ERROR, lacks perfect replica: " + path);
 				}
+				doneError++;
 				return true;
 			}
 			
@@ -135,6 +142,7 @@ public class DataObjectProcessor implements Runnable {
 				if (ctx.verbose) {
 					Log.info("OK: " + path);
 				}
+				doneOk++;
 				return true;
 			}
 			
@@ -149,10 +157,12 @@ public class DataObjectProcessor implements Runnable {
 				if (ctx.verbose) {
 					Log.info("ERROR, replication failed (" + hirods.intInfo + "): " + path);
 				}
+				doneError++;
 			} else {
 				if (ctx.verbose) {
 					Log.info("REPLICATED OK: " + path);
 				}
+				doneReplicated++;
 			}
 			
 		} catch (IOException e) {
