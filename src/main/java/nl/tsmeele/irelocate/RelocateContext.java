@@ -129,15 +129,15 @@ public class RelocateContext {
 		password 	= config.get("password");
 		authPam 	= config.get("auth_scheme").toLowerCase().startsWith("pam");
 		destinationResource = config.get("destinationResource");
-		if (startDataId == 0L) {
-			String startDataIdStr = config.get("startDataId");
+		String startDataIdStr = config.get("startDataId");
+		if (startDataId == 0L && startDataIdStr != null) {
 			try {
 				startDataId = Long.parseLong(startDataIdStr);
 			} catch (NumberFormatException e) { };
 		}
-		if (sourceList.size() == 0) {
-			sourceResources = config.get("sourceResources");
-			for (String source : sourceResources.split(",")) {
+		sourceResources = config.get("sourceResources");
+		if (sourceList.size() == 0 && sourceResources != null) {
+			for (String source : sourceResources.split(",| ")) {
 				sourceList.add(source.trim());
 			}
 		}
