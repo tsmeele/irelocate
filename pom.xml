@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>nl.tsmeele</groupId>
 	<artifactId>irelocate</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<name>irelocate</name>
 	<url>http://github.com/tsmeele/irelocate</url>
 
@@ -81,7 +81,7 @@
 					<configuration>
 					<archive>
 						<manifest>
-							<mainClass>nl.tsmeele.ipump.PumpMain</mainClass>
+							<mainClass>nl.tsmeele.irelocate.RelocateMain</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
