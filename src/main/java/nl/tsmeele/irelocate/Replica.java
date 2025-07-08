@@ -60,7 +60,7 @@ public class Replica {
 	}
 	
 	public int retrieveDatafileStatus(Hirods hirods) throws MyRodsException, IOException {
-		// construct input args and rule
+		// construct rule and its input args
 		RHostAddr rHostAddr = new RHostAddr("", "", 0, 0);
 		MsParam inputVar1 = new MsParam("*rescName", dataRescName);
 		MsParam inputVar2 = new MsParam("*dataPath", dataPath);
@@ -72,23 +72,25 @@ public class Replica {
 		String outParamDesc = "ruleExecOut";
 		outParamDesc = outParamDesc.concat("%*result");
 		String myRule = "@external rule " + 
-			"{\n" +
-				"*fileType = \"\";\n" +
-				"*fileSize = \"\";\n" +
-				"*result = msi_stat_vault(*rescName, *dataPath, *fileType, *fileSize);\n" +
-				"if (*result < 0 || *fileType != \"FILE\") {\n" +
-					"*result = -1;\n" +
-				"} else {\n" +
-					"if (*fileSize != *replicaSize) {\n" +
-						"*result = 0;\n" +
-					"} else {\n" +
-						"*result = 1;\n" +
-					"}\n" +
-				"}\n" +
+			"{" +
+				"*fileType = \"\";" +
+				"*fileSize = \"\";" +
+				"*result = msi_stat_vault(*rescName, *dataPath, *fileType, *fileSize);" +
+				"if (*result < 0 || *fileType != \"FILE\") {" +
+					"*result = -1;" +
+				"} else {" +
+					"if (*fileSize != *replicaSize) {" +
+						"*result = 0;" +
+					"} else {" +
+						"*result = 1;" +
+					"}" +
+				"}" +
 			"}";
 		KeyValPair condInput = new KeyValPair();
 		condInput.put(Kw.INSTANCE_NAME_KW, "irods_rule_engine_plugin-irods_rule_language-instance");
 		ExecMyRuleInp ruleInp = new ExecMyRuleInp(myRule, rHostAddr, condInput, outParamDesc, msParamArray);
+		
+		// execute rule and interpret result
 		MsParamArray out = hirods.rcExecMyRule(ruleInp);
 		if (hirods.error || out == null) {
 			return hirods.intInfo;
