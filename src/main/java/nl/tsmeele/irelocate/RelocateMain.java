@@ -31,7 +31,7 @@ public class RelocateMain {
 			ctx.usage = true;
 		}
 		// process command line options
-		if (ctx.sourceResources == null) {
+		if (ctx.sourceList.isEmpty()) {
 			Log.error("At least one source resource must be specified.\n");
 			ctx.usage = true;
 		}
