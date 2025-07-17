@@ -160,7 +160,7 @@ public class RelocateContext {
 				"-threads <#threads>, -t : specify number of parallel threads to use. Default is 1 thread.\n" +
 				"-trim                   : trim replicas from source resources, provided that a perfect replica exists on destination\n" +
 				"                          NB: When trim option is specified, only trim actions take place, no replication actions\n" +
-				"-start, -s				 : filters objects, only select objects with data id higher or equal to start\n" +
+				"-start, -s              : filters objects, only select objects with data id higher or equal to start\n" +
 		        "-config <configfile>    :\n" +
 		        "   The configfile is a local path to a textfile with configuration key=value lines.\n" +
 		        "\nConfiguration file keywords:\n" +
