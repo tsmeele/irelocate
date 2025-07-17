@@ -47,7 +47,7 @@ public class RelocateMain {
 			Log.setDebugOutputFilter(classFilter);
 		}
 		if (ctx.trim) {
-			Log.info("TRIM option specified: will trim data from source resources");
+			Log.info("TRIM option specified: will trim data from source resources (only if also exists on destination)");
 		}
 		
 		// log in and assert that we are a rodsadmin type user
