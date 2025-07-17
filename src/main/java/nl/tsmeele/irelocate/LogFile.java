@@ -40,7 +40,7 @@ public class LogFile {
 	
 	public synchronized void logDone(String path) throws IOException {
 		openAppend(logfilePath);
-		logfile.write("OK " + path + "\n");
+		logfile.write("OK REPLICATED " + path + "\n");
 		logfile.flush();
 	}
 	
