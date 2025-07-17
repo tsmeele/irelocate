@@ -1,12 +1,14 @@
 package nl.tsmeele.irelocate;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 
 import nl.tsmeele.log.Log;
 import nl.tsmeele.myrods.high.Hirods;
 import nl.tsmeele.myrods.high.IrodsUser;
+import nl.tsmeele.myrods.plumbing.MyRodsException;
 
 public class DataObjectProcessor implements Runnable {
 	static final int MAX_DATA_OBJECTS_PER_SESSION = 1000;
@@ -18,6 +20,7 @@ public class DataObjectProcessor implements Runnable {
 	private long count;
 	private long doneOk;
 	private long doneReplicated;
+	private long doneTrimmed;
 	private long doneError;
 	private long doneSkipped;
 	private Hirods hirods = null;
@@ -38,8 +41,13 @@ public class DataObjectProcessor implements Runnable {
 		while (process(queue.poll()) && !stop) {
 			count++;
 		}
-		System.out.println("DataObjectProcessor #" + threadId + " is done. Data objects total: " + count + "  okay: " + doneOk +
+		if (ctx.trim) {
+			System.out.println("DataObjectProcessor #" + threadId + " is done. Data objects total: " + count + "  okay: " + doneOk +
+				"  trimmed-okay: " + doneTrimmed + "  error: " + doneError + "  skipped: " + doneSkipped);
+		} else {
+			System.out.println("DataObjectProcessor #" + threadId + " is done. Data objects total: " + count + "  okay: " + doneOk +
 				"  replicated-okay: " + doneReplicated + "  error: " + doneError + "  skipped: " + doneSkipped);
+		}
 		// clean up any open server session
 		try {
 			if (hirods != null) {
@@ -49,13 +57,17 @@ public class DataObjectProcessor implements Runnable {
 		}
 	}
 
-	private boolean process(String dataObj) {
+	/**
+	 * @param dataObjId  reference to the data object to process
+	 * @return true if no exception raised during processing
+	 */
+	private boolean process(String dataObjId) {
 		/* 
 		 * iRODS agents may suffer from memory leaks due to custom rules and/or micro services.
 		 * we reconnect now and then to avoid impact of such potential leaks.
 		 */
 		
-		if (dataObj == null) return false;
+		if (dataObjId == null) return false;
 		if (hirods != null && count % MAX_DATA_OBJECTS_PER_SESSION == 0) {
 			try {
 				hirods.rcDisconnect();
@@ -77,51 +89,64 @@ public class DataObjectProcessor implements Runnable {
 			}
 		}
 		
+		
 		// report progress (independent of log level)
 		if ( count != 0 && count % DATA_OBJECTS_PER_PROGRESS_REPORT == 0) {
-			System.out.println("Data object processor #" + threadId + " progress: at data object " + dataObj);
+			System.out.println("Data object processor #" + threadId + " progress: at data object " + dataObjId);
 		}
 
 		/* assert all replicas that belong to data_object
 		 *   - classify the replicas into perfect, good, stale, bad
-		 *   - qreplicate if 
+		 *  
+		 * execute either replicate or trim task, based on command line arguments
+		 *   - replicate ONLY IF 
 		 *     1) a perfect replica exist  AND
 		 *     2) the destination resource lacks a perfect replica
 		 *     
-		 *  FUTURE: trim if:
-		 *     1) a perfect replica exists on the destination resource AND
-		 *     2) replicas exist on obsolete resources (select these)
+		 *   - trim ONLY IF:
+		 *     1) a perfect replica exists on (or within of hierarchy of) the destination resource AND
+		 *     2) one or more replicas exist on source resources (select these to trim)
 		*/
 		try {
 			// analyze replicas of data object
-			List<Replica> replicas = IrodsQuery.getReplicas(hirods, dataObj);
+			List<Replica> replicas = IrodsQuery.getReplicas(hirods, dataObjId);
 			Replica localPerfect = null;
 			Replica perfect = null;
 			Replica goodOrStale = null;
 			Replica destPerfect = null;
 			boolean intermediate = false;
+			List<Replica> onSourceResource = new ArrayList<Replica>();
 			for (Replica r : replicas) {
+				// does replica classify as perfect?
 				if (r.isGood() && r.retrieveDatafileStatus(hirods) == 1) {
-					// replica in perfect condition
+					// make a note we have at least one perfect replica
 					perfect = r;
+					// lookup the resource and make a note of other attributes
 					Resource resc = ctx.rescList.get(r.dataRescName);
 					if (resc != null && resc.isLocal) {
 						localPerfect = r;
 					}
-					if (r.dataRescName.equals(ctx.destinationResource)) {
+					if (ctx.rescList.isInHierarchy(ctx.destinationResource,  r.dataRescName)) {
 						destPerfect = r;
 					}
 				}
+				// is replica at rest?
 				if (r.isGood() || r.isStale()) {
+					// at rest: see if it is located on a source resource
 					goodOrStale = r;
+					if (ctx.sourceList.contains(r.dataRescName)) {
+						onSourceResource.add(r);
+					}
 				} else {
 					intermediate = true;
 				}
 			}
 			
-			// ignore data object if all replicas not at rest 
+			// decide on an action based on the analysis of all replicas of this object
+			
+			// ignore data object if none of the replicas are currently at rest 
 			if (replicas.isEmpty() || (goodOrStale == null && intermediate)) {
-				Log.debug("Skipping intermediate object " + dataObj);
+				Log.debug("Skipping intermediate object " + dataObjId);
 				doneSkipped++;
 				return true;
 			}
@@ -137,41 +162,82 @@ public class DataObjectProcessor implements Runnable {
 				return true;
 			}
 			
-			// (silently) ok in case data object has a perfect replica on destination
-			if (destPerfect != null) {
-				if (ctx.verbose) {
-					Log.info("OK: " + path);
+			// general preconditions have been met, now trim or replicate
+			
+			if (ctx.trim) {
+				// TRIM action requested
+				if (destPerfect == null) {
+					// unable to trim because destination does not yet have a perfect replica
+					Log.debug("Object lacks perfect replica at destination: " + path);
+					doneError++;
+					return true;
 				}
-				doneOk++;
+				if (onSourceResource.isEmpty()) {
+					// no replicas to trim
+					Log.info("OK: " + path);
+					doneOk++;
+					return true;
+				}
+				trimAction(onSourceResource, path);
+				return true;
+			} else {
+				// REPLICATE action requested
+				if (destPerfect != null) {
+					// perfect replica already exists on destination, notify no action needed
+					Log.info("OK: " + path);
+					doneOk++;
+					return true;
+				}
+				// we need to replicate, prefer to source from a local copy (performance!) 
+				if (localPerfect != null) {
+					perfect = localPerfect;
+				}
+				replicateAction(perfect, path);
 				return true;
 			}
-			
-			// replicate perfect copy to destination, prefer a local copy
-			if (localPerfect != null) {
-				perfect = localPerfect;
-			}
-			Log.debug("...replicating: " + path);
-			boolean replicated = perfect.replicate(hirods, ctx.destinationResource, false);
-			if (!replicated) {
-				ctx.log.logError(path, "Replication failed. iRODS error = " + hirods.intInfo);
-				if (ctx.verbose) {
-					Log.info("ERROR, replication failed (" + hirods.intInfo + "): " + path);
-				}
-				doneError++;
-			} else {
-				if (ctx.verbose) {
-					Log.info("REPLICATED OK: " + path);
-				}
-				doneReplicated++;
-			}
-			
+		
 		} catch (IOException e) {
 			Log.info("IOException while fetching replicas: " + e.getMessage());
 			return false;
 		}
-		
-		return true;
 	}
+	
+	private void replicateAction(Replica perfect, String path) throws MyRodsException, IOException {
+		Log.debug("...replicating: " + path);
+		boolean replicated = perfect.replicate(hirods, ctx.destinationResource, false);
+		if (replicated) {
+			Log.info("REPLICATED OK: " + path);
+			ctx.log.logDone(path);
+			doneReplicated++;
+		} else {
+			ctx.log.logError(path, "Replication failed. iRODS error = " + hirods.intInfo);
+			Log.info("ERROR, replication failed (" + hirods.intInfo + "): " + path);
+			doneError++;
+		}
+	}
+	
+	
+	private void trimAction(List<Replica> onSourceResource, String path) throws MyRodsException, IOException {
+		Log.debug("...trimming: " + path);
+		ArrayList<String> trimErrors = new ArrayList<String>();
+		for (Replica r : onSourceResource) {
+			if (r.trim(hirods)) {
+				Log.info("TRIMMED ON " + r.dataRescName + ": " + path);
+				ctx.log.logTrimmed(path, r.dataRescName);
+			} else {
+				Log.info("ERROR, trim failed (" + hirods.intInfo + ") for resource: " + r.dataRescName  + "  path: " + path);
+				trimErrors.add(r.dataRescName);
+			}
+		}
+		if (!trimErrors.isEmpty()) {
+			ctx.log.logError(path, "Unable to trim replica on resource(s): " + trimErrors.toString());
+			doneError++;
+		} else {
+			doneTrimmed++;
+		}
+	}
+	
+	
 	
 	
 	

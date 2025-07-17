@@ -54,9 +54,14 @@ public class Replica {
 		return !hirods.error;
 	}
 
-	public boolean trim(Hirods hirods, String resource) {
-		// TODO
-		return false;
+	public boolean trim(Hirods hirods) throws MyRodsException, IOException {
+		KeyValPair condInput = new KeyValPair();
+		condInput.put(Kw.ADMIN_KW, "");
+		condInput.put(Kw.COPIES_KW, "1");
+		condInput.put(Kw.REPL_NUM_KW, dataReplNum);	// source replica to trim
+		DataObjInp dataObjInp = new DataObjInp(path, condInput);
+		hirods.rcDataObjTrim(dataObjInp);
+		return !hirods.error;
 	}
 	
 	public int retrieveDatafileStatus(Hirods hirods) throws MyRodsException, IOException {

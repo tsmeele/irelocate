@@ -44,6 +44,12 @@ public class LogFile {
 		logfile.flush();
 	}
 	
+	public synchronized void logTrimmed(String path, String rescName) throws IOException {
+		openAppend(logfilePath);
+		logfile.write("OK " + "TRIMMED(" + rescName + ") " + path + "\n");
+		logfile.flush();
+	}
+	
 	public synchronized void logError(String path, String error) throws IOException {
 		openAppend(logfilePath);
 		logfile.write("ERROR " + path + " : " + error + "\n");
