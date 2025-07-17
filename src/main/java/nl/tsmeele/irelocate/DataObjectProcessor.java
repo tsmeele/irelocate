@@ -42,10 +42,10 @@ public class DataObjectProcessor implements Runnable {
 			count++;
 		}
 		if (ctx.trim) {
-			System.out.println("DataObjectProcessor #" + threadId + " is done. Data objects total: " + count + "  okay: " + doneOk +
+			System.out.println("DataObjectProcessor #" + threadId + " is done. Data objects subtotal: " + count + "  okay: " + doneOk +
 				"  trimmed-okay: " + doneTrimmed + "  error: " + doneError + "  skipped: " + doneSkipped);
 		} else {
-			System.out.println("DataObjectProcessor #" + threadId + " is done. Data objects total: " + count + "  okay: " + doneOk +
+			System.out.println("DataObjectProcessor #" + threadId + " is done. Data objects subtotal: " + count + "  okay: " + doneOk +
 				"  replicated-okay: " + doneReplicated + "  error: " + doneError + "  skipped: " + doneSkipped);
 		}
 		// clean up any open server session
