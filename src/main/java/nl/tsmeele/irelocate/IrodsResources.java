@@ -67,15 +67,23 @@ public class IrodsResources {
 	}
 	
 	public boolean exists(String rescName) {
-		return resources.get(rescName) != null;
+		return rescName != null && resources.get(rescName) != null;
+	}
+
+	public boolean isValid(String rescName) {
+		if (rescName == null) return false;
+		Resource resc = resources.get(rescName);
+		return resc != null && !resc.name.equals("bundleResc");
 	}
 	
 	public boolean isUnixFileSystem(String rescName) {
+		if (rescName == null) return false;
 		Resource resc = resources.get(rescName);
 		return resc != null && resc.type.toLowerCase().equals("unixfilesystem") && !resc.name.equals("bundleResc");
 	}
 
 	public boolean isStandalone(String rescName) {
+		if (rescName == null) return false;
 		Resource resc = resources.get(rescName);
 		return resc != null && resc.parent.equals("") && !parentResources.contains(resc.name);
 	}
@@ -83,6 +91,22 @@ public class IrodsResources {
 	public boolean isLeaf(String rescName) {
 		return isUnixFileSystem(rescName) && !parentResources.contains(rescName);
 	}
+	
+	public boolean isInHierarchy(String rescTree, String rescName) {
+		if (rescName == null) return false;
+		Resource resc = resources.get(rescName);
+		if (resc == null || !exists(rescTree)) {
+			return false;
+		}
+		if (rescName.equals(rescTree)) {
+			return true;
+		}
+		if (resc.parent.equals("")) {
+			return false;
+		}
+		return isInHierarchy(rescTree, resc.parent);
+	}
+	
 	
 
 	public String toString() {

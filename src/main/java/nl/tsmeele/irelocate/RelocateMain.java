@@ -46,6 +46,9 @@ public class RelocateMain {
 			String[] classFilter = { "nl.tsmeele.irelocate" };
 			Log.setDebugOutputFilter(classFilter);
 		}
+		if (ctx.trim) {
+			Log.info("TRIM option specified: will trim data from source resources");
+		}
 		
 		// log in and assert that we are a rodsadmin type user
 		IrodsUser user = new IrodsUser(ctx.userName, ctx.zone);
@@ -59,11 +62,11 @@ public class RelocateMain {
 		ctx.rescList = new IrodsResources(hirods);
 		Log.debug(ctx.rescList.toString());
 		
-		// assert that the destination resource exists, and that it is a stand-alone, leaf, resource
+		/* assert that the destination resource exists
+		 * and refers to a valid resource
+		 */
 		String errorMsg = null;
-		if (!ctx.rescList.isStandalone(ctx.destinationResource)) 
-			errorMsg = "is not a stand-alone leaf resource";
-		if (!ctx.rescList.isUnixFileSystem(ctx.destinationResource)) 
+		if (ctx.rescList.isValid(ctx.destinationResource)) 
 			errorMsg = "is an invalid destination resource";
 		if (!ctx.rescList.exists(ctx.destinationResource)) 
 			errorMsg = "does not exist";
@@ -73,11 +76,13 @@ public class RelocateMain {
 			System.exit(2);
 		}
 		
-		// assert that source resource list is sound and resources refer to existing leaf resources
+		/* assert that source resources refer to existing leaf resources
+		 * and assert source resources do not overlap with destination resource
+		 */
 		for (String resc : ctx.sourceList) {
 			if (!ctx.rescList.isLeaf(resc)) 
 				errorMsg = "is a non-existing or invalid leaf resource";
-			if (resc.equals(ctx.destinationResource)) 
+			if (ctx.rescList.isInHierarchy(ctx.destinationResource, resc)) 
 				errorMsg = "source resource must be different from destination resource";
 			if (errorMsg != null) {
 				Log.error("'" + resc + "' " + errorMsg);
