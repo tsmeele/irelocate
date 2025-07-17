@@ -66,7 +66,7 @@ public class RelocateMain {
 		 * and refers to a valid resource
 		 */
 		String errorMsg = null;
-		if (ctx.rescList.isValid(ctx.destinationResource)) 
+		if (!ctx.rescList.isValid(ctx.destinationResource)) 
 			errorMsg = "is an invalid destination resource";
 		if (!ctx.rescList.exists(ctx.destinationResource)) 
 			errorMsg = "does not exist";
@@ -98,6 +98,13 @@ public class RelocateMain {
 
 		// done with preparation
 		hirods.rcDisconnect();	
+		
+		// are there any objects to process?
+		if (objs.isEmpty()) {
+			System.out.println("No processing needed (object list empty) for selected source resources and data object range.");
+			System.exit(0);
+		}
+		
 		
 		// start a new log
 		ctx.log = new LogFile(ctx.logFile);
