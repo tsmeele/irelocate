@@ -49,7 +49,7 @@ public class IrodsResources {
 						genOut.data[i][1], // resc_name
 						genOut.data[i][2], // resc_loc
 						genOut.data[i][3], // resc_type_name
-						genOut.data[i][4], // resc_parent
+						genOut.data[i][4], // resc_parent (= resc_id of parent)
 						// infer if resource is located on iRODS host itself
 						// TODO: should do dns lookup and compare ip addresses
 						genOut.data[i][2].toLowerCase().equals(host) ||
@@ -62,51 +62,80 @@ public class IrodsResources {
 			}
 	}
 	
+	/**
+	 * @param rescName name of resource to lookup
+	 * @return resource the selected resource or null if the resource does not exist
+	 */
 	public Resource get(String rescName) {
+		if (rescName == null) return null;
 		return resources.get(rescName);
-	}
+	}	
 	
-	public boolean exists(String rescName) {
-		return rescName != null && resources.get(rescName) != null;
+	/**
+	 * @param rescid id of resource to lookup
+	 * @return resource the selected resource or null if the resource does not exist
+	 */
+	private Resource getById(String rescId) {
+		for (Resource r : resources.values()) {
+			if (r.id.equals(rescId)) {
+				return r;
+			}
+		}
+		return null;
 	}
 
-	public boolean isValid(String rescName) {
-		if (rescName == null) return false;
-		Resource resc = resources.get(rescName);
-		return resc != null && !resc.name.equals("bundleResc");
+	/**
+	 * @param resc selected resource
+	 * @return true if resource is a storage resource or a coordinating resource 
+	 * with at least one storage resource in its hierarchy, otherwise false.
+	 */
+	public boolean hasStorageResource(Resource resc) {
+		for (Resource r : expandToLeafs(resc)) {
+			if (r.isStorageResource()) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
-	public boolean isUnixFileSystem(String rescName) {
-		if (rescName == null) return false;
-		Resource resc = resources.get(rescName);
-		return resc != null && resc.type.toLowerCase().equals("unixfilesystem") && !resc.name.equals("bundleResc");
+	/**
+	 * @param rescTree root resource of a tree
+	 * @param resc selected resource
+	 * @return true if selected resource is part of the tree (or its root), otherwise false.
+	 */
+	public boolean isInTree(Resource rescTree, Resource resc) {
+		if (rescTree == null || resc == null) return false;
+		if (resc == rescTree) return true;
+		Resource parent = getById(resc.parent);
+		return isInTree(rescTree, parent);
 	}
+	
 
-	public boolean isStandalone(String rescName) {
-		if (rescName == null) return false;
-		Resource resc = resources.get(rescName);
-		return resc != null && resc.parent.equals("") && !parentResources.contains(resc.name);
-	}
 	
-	public boolean isLeaf(String rescName) {
-		return isUnixFileSystem(rescName) && !parentResources.contains(rescName);
+	/**
+	 * @param resc selected (root) resource
+	 * @return list of resources that are the leafs in the tree referenced by the root resource. 
+	 */
+	public List<Resource> expandToLeafs(Resource resc) {
+		List<Resource> out = new ArrayList<Resource>();
+		// if resc has no children then just return this resc
+		if (!parentResources.contains(resc.id)) {
+			out.add(resc);
+			return out;
+		}
+		// resc is parent, return its children
+		for (Resource r : resources.values()) {
+			// skip self to avoid loops
+			if (r.name.equals(resc.name)) {
+				continue;
+			}
+			// is this a direct child of resc? then add its leafs
+			if (r.parent.equals(resc.id)) {
+				out.addAll(expandToLeafs(r));
+			}
+		}
+		return out;
 	}
-	
-	public boolean isInHierarchy(String rescTree, String rescName) {
-		if (rescName == null) return false;
-		Resource resc = resources.get(rescName);
-		if (resc == null || !exists(rescTree)) {
-			return false;
-		}
-		if (rescName.equals(rescTree)) {
-			return true;
-		}
-		if (resc.parent.equals("")) {
-			return false;
-		}
-		return isInHierarchy(rescTree, resc.parent);
-	}
-	
 	
 
 	public String toString() {

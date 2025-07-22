@@ -13,6 +13,9 @@ public class Resource {
 		this.isLocal = isLocal;
 	}
 	
+	public boolean isStorageResource() {
+		return type.toLowerCase().equals("unixfilesystem") && !name.equals("bundleResc");
+	}
 	
 	public String toString() {
 		return "RESC{" + id + ", " + name + ", " + loc + (isLocal ? "(IS_LOCAL)" : "") + ", " + type + ", " + parent + "}";

@@ -2,9 +2,11 @@ package nl.tsmeele.irelocate;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 import nl.tsmeele.log.Log;
 import nl.tsmeele.log.LogLevel;
@@ -17,6 +19,7 @@ import nl.tsmeele.myrods.plumbing.MyRodsException;
  *
  */
 public class RelocateMain {
+	static Hirods hirods = null;
 	static int processedObjectCount = 0;
 	static RelocateContext ctx = new RelocateContext();
 	static Queue<String> queue = new ConcurrentLinkedQueue<String>();
@@ -52,9 +55,9 @@ public class RelocateMain {
 		
 		// log in and assert that we are a rodsadmin type user
 		IrodsUser user = new IrodsUser(ctx.userName, ctx.zone);
-		Hirods hirods = rodsAdminLogin(ctx.host, ctx.port, user, ctx.password, ctx.authPam);
+		hirods = rodsAdminLogin(ctx.host, ctx.port, user, ctx.password, ctx.authPam);
 		if (hirods == null) {
-			System.exit(1);
+			System.exit(2);
 		}
 		Log.debug("Logged in as " + user.nameAndZone() + " (rodsadmin)");
 		
@@ -63,33 +66,49 @@ public class RelocateMain {
 		Log.debug(ctx.rescList.toString());
 		
 		/* assert that the destination resource exists
-		 * and refers to a valid resource
+		 * and directly/indirectly refers to a resource that contains a storage resource 
 		 */
-		String errorMsg = null;
-		if (!ctx.rescList.isValid(ctx.destinationResource)) 
-			errorMsg = "is an invalid destination resource";
-		if (!ctx.rescList.exists(ctx.destinationResource)) 
-			errorMsg = "does not exist";
-		if (errorMsg != null) {
-			Log.error("'" + ctx.destinationResource + "' " + errorMsg);
-			hirods.rcDisconnect();
-			System.exit(2);
+		Resource destResc = ctx.rescList.get(ctx.destinationResource);
+		if (destResc == null || !ctx.rescList.hasStorageResource(destResc)) {
+			errorExit(ctx.destinationResource, "does not exist or is invalid destination resource");
 		}
 		
-		/* assert that source resources refer to existing leaf resources
-		 * and assert source resources do not overlap with destination resource
-		 */
-		for (String resc : ctx.sourceList) {
-			if (!ctx.rescList.isLeaf(resc)) 
-				errorMsg = "is a non-existing or invalid leaf resource";
-			if (ctx.rescList.isInHierarchy(ctx.destinationResource, resc)) 
-				errorMsg = "source resource must be different from destination resource";
-			if (errorMsg != null) {
-				Log.error("'" + resc + "' " + errorMsg);
-				hirods.rcDisconnect();
-				System.exit(3);
+		// expand source list to include all (if any) leafs of coordinating source resources
+		HashSet<Resource> sources = new HashSet<Resource>();
+		for (String rescName : ctx.sourceList) {
+			Resource resc = ctx.rescList.get(rescName);
+			if (resc == null) {
+				errorExit(rescName, "source resource does not exist");
+			}
+			// note that leafs may be empty coordinating resources
+			List<Resource> expanded = ctx.rescList.expandToLeafs(resc);
+			if (expanded.size() != 1 || expanded.get(0) != resc) {
+				List<String> expandedStr = expanded.stream().map(r->r.name).collect(Collectors.toList());
+				Log.debug(rescName + " expanded to " + expandedStr.toString());
+			} 
+			sources.addAll(expanded);
+		}
+
+		// assert source resources meet our needs
+		for (Resource resc : sources) {
+			// indicate to user if we have derived the resource
+			String expanded = "";
+			if (!ctx.sourceList.contains(resc.name)) {
+				expanded = " (using expanded source list)";
+			}
+			// source must be a storage type resource
+			if (!resc.isStorageResource()) {
+				errorExit(resc.name, "is not a valid (source) storage type resource" + expanded );
+			}
+			// source may not overlap with destination
+			if (ctx.rescList.isInTree(destResc, resc) ||
+				ctx.rescList.isInTree(resc,  destResc)) {
+				errorExit(resc.name, "source resource may not overlap with destination resource" + expanded);
 			}
 		}
+		
+		// save expanded list as source resources
+		ctx.sourceList = sources.stream().map(r -> r.name).collect(Collectors.toList());
 
 		// find all data objects with one or more replicas on source resources
 		// if specified, filter out data objects with a data id less than startDataID
@@ -124,6 +143,12 @@ public class RelocateMain {
 		
 		
 	}
+    
+    public static void errorExit(String rescName, String errorMessage) throws MyRodsException, IOException {
+    	Log.error("'" + rescName + "' " + errorMessage);
+		hirods.rcDisconnect();
+		System.exit(3);
+    }
     
     
     public static Hirods rodsAdminLogin(String host, int port, IrodsUser user, String password, boolean authPam)  {
