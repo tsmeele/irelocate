@@ -115,6 +115,7 @@ public class DataObjectProcessor implements Runnable {
 			Replica goodOrStale = null;
 			Replica destPerfect = null;
 			boolean intermediate = false;
+			Resource destResc = ctx.rescList.get(ctx.destinationResource);
 			List<Replica> onSourceResource = new ArrayList<Replica>();
 			for (Replica r : replicas) {
 				// does replica classify as perfect?
@@ -126,7 +127,7 @@ public class DataObjectProcessor implements Runnable {
 					if (resc != null && resc.isLocal) {
 						localPerfect = r;
 					}
-					if (ctx.rescList.isInHierarchy(ctx.destinationResource,  r.dataRescName)) {
+					if (ctx.rescList.isInTree(destResc, resc)) {
 						destPerfect = r;
 					}
 				}
