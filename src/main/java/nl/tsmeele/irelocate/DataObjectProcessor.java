@@ -11,7 +11,7 @@ import nl.tsmeele.myrods.high.IrodsUser;
 import nl.tsmeele.myrods.plumbing.MyRodsException;
 
 public class DataObjectProcessor implements Runnable {
-	static final int MAX_DATA_OBJECTS_PER_SESSION = 1000;
+	static final int MAX_DATA_OBJECTS_PER_SESSION = 5000;
 	static final int DATA_OBJECTS_PER_PROGRESS_REPORT = 5000;
 	private int threadId;
 	private RelocateContext ctx = null;
