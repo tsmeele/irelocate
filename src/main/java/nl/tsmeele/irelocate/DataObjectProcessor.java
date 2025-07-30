@@ -198,7 +198,7 @@ public class DataObjectProcessor implements Runnable {
 			}
 		
 		} catch (IOException e) {
-			Log.info("IOException while fetching replicas: " + e.getMessage());
+			Log.error("IOException while fetching replicas: " + e.getMessage());
 			return false;
 		}
 	}
