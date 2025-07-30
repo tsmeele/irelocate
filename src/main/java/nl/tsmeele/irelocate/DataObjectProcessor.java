@@ -154,7 +154,7 @@ public class DataObjectProcessor implements Runnable {
 			
 			String path = replicas.get(0).path;
 			// report error in case data object lacks a perfect replica
-			if (!intermediate && perfect == null) {
+			if (perfect == null) {
 				ctx.log.logError(path, "Object lacks a perfect replica");
 				if (ctx.verbose) {
 					Log.info("ERROR, lacks perfect replica: " + path);
@@ -198,7 +198,7 @@ public class DataObjectProcessor implements Runnable {
 			}
 		
 		} catch (IOException e) {
-			Log.info("IOException while fetching replicas: " + e.getMessage());
+			Log.error("IOException while fetching replicas: " + e.getMessage());
 			return false;
 		}
 	}
