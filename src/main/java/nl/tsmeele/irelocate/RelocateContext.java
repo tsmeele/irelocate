@@ -39,6 +39,7 @@ public class RelocateContext {
 	// information added during session by RelocateMain, after connections have been established
 	public IrodsResources rescList = null;
 	public LogFile log = null;
+	public List<Resource> otherDestinationResources = null;
 	
 	
 	public void processArgs(String[] args) throws MyRodsException {

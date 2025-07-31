@@ -83,8 +83,8 @@ public class RelocateMain {
 		
 		// show nearby resources that will be considered acceptable destinations as well
 		if (ctx.nearby) {
-			List<String> otherDestinations = ctx.rescList.otherStorageResourcesOnSameHosts(destResc)
-					.stream().map(r->r.name).collect(Collectors.toList());
+			ctx.otherDestinationResources = ctx.rescList.otherStorageResourcesOnSameHosts(destResc);
+			List<String> otherDestinations = ctx.otherDestinationResources.stream().map(r->r.name).collect(Collectors.toList());
 			if (otherDestinations.isEmpty()) {
 				Log.warning("Nearby option was specified, yet destination resource does not have any siblings on same host(s)");
 			} else {
@@ -125,6 +125,9 @@ public class RelocateMain {
 			if (ctx.rescList.isInTree(destResc, resc) ||
 				ctx.rescList.isInTree(resc,  destResc)) {
 				errorExit(resc.name, "source resource may not overlap with destination resource" + expanded);
+			}
+			if (ctx.nearby && ctx.otherDestinationResources.contains(resc)) {
+				errorExit(resc.name, "source resource may not overlap with a resource 'nearby' the destination resource");
 			}
 		}
 		

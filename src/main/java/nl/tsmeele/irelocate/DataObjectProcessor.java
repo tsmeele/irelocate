@@ -127,7 +127,11 @@ public class DataObjectProcessor implements Runnable {
 					if (resc != null && resc.isLocal) {
 						localPerfect = r;
 					}
-					if (ctx.rescList.isInTree(destResc, resc)) {
+					if (resc != null && ctx.rescList.isInTree(destResc, resc)) {
+						destPerfect = r;
+					}
+					// optionally consider leaf resources on same host as destination sufficient 
+					if (ctx.nearby && resc != null && ctx.otherDestinationResources.contains(resc)) {
 						destPerfect = r;
 					}
 				}

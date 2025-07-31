@@ -110,7 +110,29 @@ public class IrodsResources {
 		return isInTree(rescTree, parent);
 	}
 	
-
+	public List<Resource> otherStorageResourcesOnSameHosts(Resource resc) {
+		List<Resource> leafs = expandToLeafs(resc);
+		List<Resource> others = new ArrayList<Resource>();
+		for (Resource r : resources.values()) {
+			// only consider storage resources
+			if (!r.isStorageResource()) {
+				continue;
+			}
+			// skip resources that are part of the destination resource
+			if (leafs.contains(r)) {
+				continue;
+			}
+			// select resource if located on a host
+			// similar to any of the destination leaf locations
+			for (Resource leaf : leafs) {
+				if (r.loc.equals(leaf.loc)) {
+					others.add(r);
+					break;
+				}
+			}
+		}
+		return others;
+	}
 	
 	/**
 	 * @param resc selected (root) resource
