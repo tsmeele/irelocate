@@ -125,7 +125,7 @@ public class IrodsResources {
 			// select resource if located on a host
 			// similar to any of the destination leaf locations
 			for (Resource leaf : leafs) {
-				if (r.loc.equals(leaf.loc)) {
+				if (r.loc.toLowerCase().equals(leaf.loc.toLowerCase())) {
 					others.add(r);
 					break;
 				}
