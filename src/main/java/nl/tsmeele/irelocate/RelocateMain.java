@@ -89,7 +89,7 @@ public class RelocateMain {
 				Log.warning("Nearby option was specified, yet destination resource does not have any siblings on same host(s)");
 			} else {
 				System.out.println("Nearby option was specified. The following destination (leaf) resources are\n" +
-						"located on the same host(s) as the destination resource and will be considered sufficient as well:\n" + 
+						"located on the same host(s) as '" + destResc.name + "' and will be considered sufficient as well:\n" + 
 						otherDestinations.toString() + "\n");
 			}
 		}
@@ -146,7 +146,7 @@ public class RelocateMain {
 		if (ctx.dryrun) {
 			System.out.println("DRYRUN: " + objs.size() + " data objects would be processed by " + ctx.threads + " threads");
 			if (!objs.isEmpty()) {
-				System.out.println("The first data object to be processed is: " + objs.get(0));
+				System.out.println("        First data object to be processed has DATA_ID = " + objs.get(0));
 			}
 			System.exit(0);
 		}
