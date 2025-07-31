@@ -32,6 +32,8 @@ public class RelocateContext {
 	public String logFile = LOG_FILE;
 	public int threads = 1;
 	public boolean trim = false;
+	public boolean nearby = false;
+	public boolean dryrun = false;
 	public boolean usage = false;
 	
 	// information added during session by RelocateMain, after connections have been established
@@ -55,9 +57,18 @@ public class RelocateContext {
 					debug = true;
 					break;
 				}
+				case "-dryrun": {
+					dryrun = true;
+					break;
+				}
 				case "-v":
 				case "-verbose": {
 					verbose = true;
+					break;
+				}
+				case "-n":
+				case "-nearby": {
+					nearby = true;
 					break;
 				}
 				case "-c":
@@ -161,6 +172,8 @@ public class RelocateContext {
 				"-trim                   : trim replicas from source resources, provided that a perfect replica exists on destination\n" +
 				"                          NB: When trim option is specified, only trim actions take place, no replication actions\n" +
 				"-start, -s              : filters objects, only select objects with data id higher or equal to start\n" +
+				"-nearby, -n             : a replica on a resource located on the same host as the destination resource suffices" +
+				"-dryrun                 : perform all preparations (and select data objects) but do not take any further actions" +
 		        "-config <configfile>    :\n" +
 		        "   The configfile is a local path to a textfile with configuration key=value lines.\n" +
 		        "\nConfiguration file keywords:\n" +

@@ -42,8 +42,16 @@ public class RelocateMain {
 			System.out.println(ctx.usage());
 			System.exit(1);
 		}
-		if (ctx.verbose)
+		if (ctx.dryrun) {
+			System.out.println("*** DRYRUN ***");
+			if (!ctx.verbose && !ctx.debug) {
+				ctx.verbose = true;
+				System.out.println("(verbose mode switched on for dryrun)");
+			}
+		}
+		if (ctx.verbose) {
 			Log.setLoglevel(LogLevel.INFO);
+		}
 		if (ctx.debug) {
 			Log.setLoglevel(LogLevel.DEBUG);
 			String[] classFilter = { "nl.tsmeele.irelocate" };
@@ -71,6 +79,19 @@ public class RelocateMain {
 		Resource destResc = ctx.rescList.get(ctx.destinationResource);
 		if (destResc == null || !ctx.rescList.hasStorageResource(destResc)) {
 			errorExit(ctx.destinationResource, "does not exist or is invalid destination resource");
+		}
+		
+		// show nearby resources that will be considered acceptable destinations as well
+		if (ctx.nearby) {
+			List<String> otherDestinations = ctx.rescList.otherStorageResourcesOnSameHosts(destResc)
+					.stream().map(r->r.name).collect(Collectors.toList());
+			if (otherDestinations.isEmpty()) {
+				Log.warning("Nearby option was specified, yet destination resource does not have any siblings on same host(s)");
+			} else {
+				System.out.println("Nearby option was specified. The following destination (leaf) resources are\n" +
+						"located on the same host(s) as the destination resource and will be considered sufficient as well:\n" + 
+						otherDestinations.toString() + "\n");
+			}
 		}
 		
 		// expand source list to include all (if any) leafs of coordinating source resources
@@ -118,12 +139,17 @@ public class RelocateMain {
 		// done with preparation
 		hirods.rcDisconnect();	
 		
+		// in case of dryrun, show statistics and stop here
+		if (ctx.dryrun) {
+			System.out.println("DRYRUN: " + objs.size() + " data objects would be processed by " + ctx.threads + " threads");
+			System.exit(0);
+		}
+		
 		// are there any objects to process?
 		if (objs.isEmpty()) {
 			System.out.println("No processing needed (object list empty) for selected source resources and data object range.");
 			System.exit(0);
 		}
-		
 		
 		// start a new log
 		ctx.log = new LogFile(ctx.logFile);
