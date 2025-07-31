@@ -145,6 +145,9 @@ public class RelocateMain {
 		// in case of dryrun, show statistics and stop here
 		if (ctx.dryrun) {
 			System.out.println("DRYRUN: " + objs.size() + " data objects would be processed by " + ctx.threads + " threads");
+			if (!objs.isEmpty()) {
+				System.out.println("The first data object to be processed is: " + objs.get(0));
+			}
 			System.exit(0);
 		}
 		
